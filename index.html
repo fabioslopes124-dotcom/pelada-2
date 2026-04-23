@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organizador de Pelada - Tela Sempre Ativa</title>
+    <style>
+        :root {
+            --blue: #1565c0;
+            --red: #c62828;
+            --green: #2e7d32;
+            --dark: #212121;
+            --gray: #607d8b;
+            --orange: #ef6c00;
+        }
+
+        body { font-family: sans-serif; margin: 0; background: #f0f2f5; }
+        
+        .tabs { display: flex; background: var(--dark); position: sticky; top: 0; z-index: 100; }
+        .tab-btn { flex: 1; padding: 15px; border: none; background: none; color: white; font-weight: bold; cursor: pointer; opacity: 0.6; }
+        .tab-btn.active { opacity: 1; border-bottom: 4px solid var(--green); }
+
+        .page { display: none; padding: 15px; }
+        .page.active { display: block; }
+
+        .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; }
+        
+        #timer { font-size: 3.5rem; font-weight: bold; color: var(--green); margin-bottom: 10px; }
+        #timer.finalizado { color: var(--red); animation: piscar 0.5s infinite; }
+        @keyframes piscar { 50% { opacity: 0.1; } }
+
+        .teams-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .team-box { min-height: 150px; border-radius: 10px; color: white; padding: 10px; font-weight: bold; }
+        .bg-blue { background: var(--blue); border-bottom: 5px solid #0d47a1; }
+        .bg-red { background: var(--red); border-bottom: 5px solid #b71c1c; }
+        
+        .btn-win { width: 100%; padding: 15px 5px; border: none; border-radius: 8px; color: white; font-weight: bold; margin-bottom: 5px; cursor: pointer; text-transform: uppercase; font-size: 0.8rem; }
+        .btn-win-blue { background: var(--blue); }
+        .btn-win-red { background: var(--red); }
+        .btn-draw { background: var(--gray); }
+        
+        .btn-undo { width: 100%; padding: 12px; background: var(--orange); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 15px; display: none; }
+        .btn-clear { width: 100%; padding: 15px; background: #333; color: #ff4444; border: 2px solid #ff4444; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 20px; }
+
+        .config-row { display: flex; justify-content: space-around; gap: 10px; margin-bottom: 15px; }
+        .config-item { flex: 1; background: #eee; padding: 10px; border-radius: 8px; }
+        .config-item label { display: block; font-size: 0.7rem; font-weight: bold; margin-bottom: 5px; }
+        .config-item input { width: 80%; padding: 5px; text-align: center; font-size: 1rem; }
+
+        .fila-lista { text-align: left; padding: 5px; }
+        .fila-player { padding: 10px; border-bottom: 1px solid #ddd; display: block; background: #fff; margin-bottom: 3px; border-radius: 4px; border-left: 4px solid var(--gray); }
+        .bloco-titulo { font-weight: bold; color: var(--dark); display: block; margin-top: 15px; margin-bottom: 5px; font-size: 0.9rem; text-transform: uppercase; }
+
+        .player-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; background: white; margin-bottom: 5px; border-radius: 5px; }
+        
+        #status-tela { font-size: 0.7rem; color: var(--green); margin-top: 5px; display: block; }
+    </style>
+</head>
+<body>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="openTab('jogo', this)">🏟️ CAMPO</button>
+        <button class="tab-btn" onclick="openTab('presenca', this)">📋 GESTÃO / CONFIG</button>
+    </div>
+
+    <div id="jogo" class="page active">
+        <div class="card">
+            <div id="timer">00:00</div>
+            <button onclick="playPause()" id="btn-play" style="padding:15px 25px; font-weight:bold; border-radius:8px; border:none; background:var(--dark); color:white; cursor:pointer;">▶️ INICIAR</button>
+            <button onclick="resetT()" style="padding:15px 25px; font-weight:bold; border-radius:8px; border:none; background:var(--gray); color:white; cursor:pointer;">🔄 ZERAR</button>
+            <span id="status-tela">📱 Tela sempre ativa: Habilitando...</span>
+        </div>
+
+        <button id="undo-btn" class="btn-undo" onclick="desfazer()">↩️ DESFAZER ERRO</button>
+
+        <div class="teams-grid">
+            <div class="team-box bg-blue">
+                <span id="label-azul">AZUL</span>
+                <div id="lista-azul" style="margin-top:10px; font-weight: normal;"></div>
+            </div>
+            <div class="team-box bg-red">
+                <span id="label-vermelho">VERMELHO</span>
+                <div id="lista-vermelho" style="margin-top:10px; font-weight: normal;"></div>
+            </div>
+        </div>
+
+        <div class="teams-grid">
+            <button class="btn-win btn-win-blue" onclick="vitoria('red')">Azul Ganhou<br>(Sai Vermelho)</button>
+            <button class="btn-win btn-win-red" onclick="vitoria('azul')">Vermelho Ganhou<br>(Sai Azul)</button>
+        </div>
+
+        <div class="teams-grid">
+            <button class="btn-win btn-draw" onclick="empate('azul')">Empate<br>(Sai os dois / Pref. Azul)</button>
+            <button class="btn-win btn-draw" onclick="empate('red')">Empate<br>(Sai os dois / Pref. Vermelho)</button>
+        </div>
+
+        <div class="card">
+            <strong>PRÓXIMOS NA FILA:</strong>
+            <div id="fila-espera" class="fila-lista"></div>
+        </div>
+    </div>
+
+    <div id="presenca" class="page">
+        <div class="card">
+            <h3>⚙️ CONFIGURAÇÃO</h3>
+            <div class="config-row">
+                <div class="config-item">
+                    <label>JOGADORES / TIME</label>
+                    <input type="number" id="cfg-jogadores" value="5" min="1" onchange="salvarNoNavegador(); atualizarTudo();">
+                </div>
+                <div class="config-item">
+                    <label>MINUTOS / JOGO</label>
+                    <input type="number" id="cfg-minutos" value="10" min="1" onchange="salvarNoNavegador()">
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>👥 ADICIONAR JOGADOR</h3>
+            <div style="display:flex; gap:5px; margin-bottom:15px;">
+                <input type="text" id="nome-presenca" style="flex:1; padding:15px; border-radius:8px; border:1px solid #ccc;" placeholder="Nome..." onkeypress="if(event.key==='Enter') adicionarPresenca()">
+                <button onclick="adicionarPresenca()" style="padding:0 20px; background:var(--green); color:white; border:none; border-radius:8px; font-weight:bold;">ADD</button>
+            </div>
+        </div>
+        
+        <div id="lista-geral"></div>
+
+        <button class="btn-clear" onclick="limparTudo()">⚠️ LIMPAR TODA A LISTA / RESET</button>
+    </div>
+
+    <script>
+        let todosJogadores = [];
+        let timeAzul = [];
+        let timeRed = [];
+        let fila = [];
+        let segundos = 0;
+        let rodando = null;
+        let intervaloApito = null;
+        let historico = null;
+        let wakeLock = null; // Variável para manter a tela ligada
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function tocarApito() {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.type = 'square'; osc.frequency.setValueAtTime(1000, audioCtx.currentTime); 
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+        }
+
+        // FUNÇÃO PARA MANTER A TELA LIGADA
+        async function manterTelaLigada() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    document.getElementById('status-tela').innerText = "📱 Tela sempre ativa: ON";
+                }
+            } catch (err) {
+                document.getElementById('status-tela').innerText = "📱 Tela sempre ativa: Erro ao ativar";
+            }
+        }
+
+        // Tentar reativar se o usuário sair e voltar para a aba
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                manterTelaLigada();
+            }
+        });
+
+        window.onload = function() {
+            const dadosSalvos = localStorage.getItem('pelada_dados');
+            if (dadosSalvos) {
+                const d = JSON.parse(dadosSalvos);
+                todosJogadores = d.todosJogadores || [];
+                timeAzul = d.timeAzul || [];
+                timeRed = d.timeRed || [];
+                fila = d.fila || [];
+                document.getElementById('cfg-jogadores').value = d.cfgJogadores || 5;
+                document.getElementById('cfg-minutos').value = d.cfgMinutos || 10;
+                atualizarTudo();
+            }
+        };
+
+        function salvarNoNavegador() {
+            const dados = {
+                todosJogadores, timeAzul, timeRed, fila,
+                cfgJogadores: document.getElementById('cfg-jogadores').value,
+                cfgMinutos: document.getElementById('cfg-minutos').value
+            };
+            localStorage.setItem('pelada_dados', JSON.stringify(dados));
+        }
+
+        function limparTudo() {
+            if (confirm("Deseja realmente apagar tudo?")) {
+                localStorage.removeItem('pelada_dados');
+                location.reload();
+            }
+        }
+
+        function salvarEstadoUndo() {
+            historico = { timeAzul: [...timeAzul], timeRed: [...timeRed], fila: [...fila], segundos: segundos };
+            document.getElementById('undo-btn').style.display = 'block';
+        }
+
+        function desfazer() {
+            if (!historico) return;
+            timeAzul = [...historico.timeAzul];
+            timeRed = [...historico.timeRed];
+            fila = [...historico.fila];
+            segundos = historico.segundos;
+            historico = null;
+            document.getElementById('undo-btn').style.display = 'none';
+            resetT();
+            atualizarTudo();
+            salvarNoNavegador();
+        }
+
+        function openTab(tabName, btn) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            btn.classList.add('active');
+            atualizarTudo();
+        }
+
+        function adicionarPresenca() {
+            const input = document.getElementById('nome-presenca');
+            const nome = input.value.trim();
+            const limite = parseInt(document.getElementById('cfg-jogadores').value);
+            if (!nome) return;
+            todosJogadores.push(nome);
+            if (timeAzul.length < limite || timeRed.length < limite) {
+                if (timeAzul.length <= timeRed.length) timeAzul.push(nome);
+                else timeRed.push(nome);
+            } else { fila.push(nome); }
+            input.value = ""; 
+            atualizarTudo();
+            salvarNoNavegador();
+        }
+
+        function removerJogador(nome) {
+            const limite = parseInt(document.getElementById('cfg-jogadores').value);
+            todosJogadores = todosJogadores.filter(p => p !== nome);
+            timeAzul = timeAzul.filter(p => p !== nome);
+            timeRed = timeRed.filter(p => p !== nome);
+            fila = fila.filter(p => p !== nome);
+            while((timeAzul.length < limite || timeRed.length < limite) && fila.length > 0) {
+                if(timeAzul.length <= timeRed.length) timeAzul.push(fila.shift());
+                else timeRed.push(fila.shift());
+            }
+            atualizarTudo(); salvarNoNavegador();
+        }
+
+        function atualizarTudo() {
+            const limite = parseInt(document.getElementById('cfg-jogadores').value);
+            document.getElementById('label-azul').innerText = `AZUL (${timeAzul.length}/${limite})`;
+            document.getElementById('label-vermelho').innerText = `VERMELHO (${timeRed.length}/${limite})`;
+            document.getElementById('lista-azul').innerHTML = timeAzul.join('<br>');
+            document.getElementById('lista-vermelho').innerHTML = timeRed.join('<br>');
+            
+            const containerFila = document.getElementById('fila-espera');
+            containerFila.innerHTML = "";
+            for (let i = 0; i < fila.length; i += limite) {
+                let jogadores = fila.slice(i, i + limite);
+                containerFila.innerHTML += `<span class="bloco-titulo">${Math.floor(i/limite)+1}º Próximo Time</span>`;
+                containerFila.innerHTML += jogadores.map(p => `<span class="fila-player">${p}</span>`).join('');
+            }
+
+            const listaGeral = document.getElementById('lista-geral');
+            listaGeral.innerHTML = todosJogadores.map((p) => {
+                let st = timeAzul.includes(p) ? 'Azul' : timeRed.includes(p) ? 'Vermelho' : 'Fila';
+                return `<div class="player-item"><span>${p} (${st})</span><button onclick="removerJogador('${p}')" style="color:red;border:none;background:none;font-weight:bold;">×</button></div>`;
+            }).reverse().join('');
+            updateClock();
+        }
+
+        function vitoria(corQueSai) {
+            const limite = parseInt(document.getElementById('cfg-jogadores').value);
+            if (fila.length < 1) { alert("Fila vazia!"); return; }
+            salvarEstadoUndo();
+            if (corQueSai === 'azul') { fila.push(...timeAzul); timeAzul = fila.splice(0, limite); }
+            else { fila.push(...timeRed); timeRed = fila.splice(0, limite); }
+            resetT(); atualizarTudo(); salvarNoNavegador();
+        }
+
+        function empate(pref) {
+            const limite = parseInt(document.getElementById('cfg-jogadores').value);
+            if (fila.length < limite) { alert("Fila insuficiente!"); return; }
+            salvarEstadoUndo();
+            let antigoA = [...timeAzul]; let antigoR = [...timeRed];
+            timeAzul = []; timeRed = [];
+            if (pref === 'azul') { fila.push(...antigoA); fila.push(...antigoR); } 
+            else { fila.push(...antigoR); fila.push(...antigoA); }
+            timeAzul = fila.splice(0, limite);
+            timeRed = fila.splice(0, limite);
+            resetT(); atualizarTudo(); salvarNoNavegador();
+        }
+
+        function playPause() {
+            manterTelaLigada(); // Ativa a tela ligada no clique
+            if (rodando) { pararContagem(); } 
+            else { audioCtx.resume(); rodando = setInterval(() => { segundos++; updateClock(); }, 1000); document.getElementById('btn-play').innerText = "⏸️ PAUSAR"; }
+        }
+
+        function pararContagem() { clearInterval(rodando); rodando = null; document.getElementById('btn-play').innerText = "▶️ INICIAR"; pararApito(); }
+        function pararApito() { if (intervaloApito) { clearInterval(intervaloApito); intervaloApito = null; } }
+
+        function resetT() { segundos = 0; pararContagem(); document.getElementById('timer').classList.remove('finalizado'); updateClock(); }
+
+        function updateClock() {
+            const limiteMin = parseInt(document.getElementById('cfg-minutos').value);
+            let m = Math.floor(segundos/60).toString().padStart(2,'0');
+            let s = (segundos%60).toString().padStart(2,'0');
+            const display = document.getElementById('timer');
+            display.innerText = `${m}:${s}`;
+            if (segundos >= limiteMin * 60) {
+                display.classList.add('finalizado');
+                if (!intervaloApito) { tocarApito(); intervaloApito = setInterval(tocarApito, 1000); }
+            }
+        }
+    </script>
+</body>
+</html>
